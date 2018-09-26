@@ -79,7 +79,7 @@ class data_generation():
     def gen_train_batch_data(self, batch_size):
         if self.train_batch_id == self.records_number:
             self.train_batch_id = 0
-        batch_item = self.train_items[self.train_batch_id]
+        batch_item = self.train_items[self.train_batch_id:self.train_batch_id + batch_size]
         batch_session = self.train_sessions[self.train_batch_id]
         batch_neg_items = self.train_neg_items[self.train_batch_id]
         self.train_batch_id = self.train_batch_id + batch_size
@@ -127,7 +127,7 @@ class stamp():
         self.initializer_param = tf.random_uniform_initializer(minval=-np.sqrt(3 / self.global_dimension),
                                                                maxval=-np.sqrt(3 / self.global_dimension))
 
-        self.item_id = tf.placeholder(tf.int32, name='item_id')
+        self.real_item = tf.placeholder(tf.int32, shape=[None], name='item_id')
 
         self.neg_items = tf.placeholder(tf.int32, shape=[None], name='neg_items')
 
@@ -178,22 +178,21 @@ class stamp():
         h_t = tf.tanh(tf.add(tf.matmul(memory_t, self.h_w_t), self.h_b_t))
         return h_t
 
-    def Trilinear_Composition(self, h_s, h_t):
+    def Trilinear_Composition(self, h_s, h_t, input_session_embedding):
         # self.item_embedding_matrix 即为候选item集合
-        # V*1
-        score = tf.nn.sigmoid(tf.matmul(h_s, tf.transpose(tf.multiply(self.item_embedding_matrix, h_t))))
-        y_predict = tf.transpose(tf.nn.softmax(tf.transpose(score)))
+        score = tf.nn.sigmoid(tf.matmul(h_s, tf.transpose(tf.multiply(input_session_embedding, h_t))))
+        y_predict = tf.nn.softmax(score)
         return y_predict
 
-    def loss_function(self, y_predict):
-        y_predict = tf.transpose(y_predict)
-        loss = (-1) * (tf.reduce_sum(tf.log(y_predict[self.item_id])) + tf.reduce_sum(
-            tf.log(1 - tf.gather(y_predict, self.neg_items))))
+    def loss_function(self, positive_result, neg_result):
+        loss = (-1) * (tf.reduce_sum(tf.log(positive_result)) + tf.reduce_sum(tf.log(1 - neg_result)))
         return loss
 
     def build_model(self):
         print('building model ... ')
 
+        real_item_embedding = tf.nn.embedding_lookup(self.item_embedding_matrix, self.real_item)
+        neg_items_embedding = tf.nn.embedding_lookup(self.item_embedding_matrix, self.neg_items)
         current_session_embedding = tf.nn.embedding_lookup(self.item_embedding_matrix, self.current_session)
         # 取current_session_embedding最后一个
         memory_t = tf.expand_dims(current_session_embedding[-1], axis=0)
@@ -202,10 +201,13 @@ class stamp():
         # 经过MLP得到hidden state
         h_s = self.MLP_Cell_A(memory_a)
         h_t = self.MLP_Cell_B(memory_t)
-        y_predict = self.Trilinear_Composition(h_s, h_t)
-        # calculate loss by cross entropy
-        self.intention_loss = self.loss_function(y_predict)
 
+        # calculate loss by cross entropy
+        positive_result = self.Trilinear_Composition(h_s, h_t, real_item_embedding)
+        neg_result = self.Trilinear_Composition(h_s, h_t, neg_items_embedding)
+        self.intention_loss = self.loss_function(positive_result, neg_result)
+
+        y_predict = self.Trilinear_Composition(h_s, h_t, self.item_embedding_matrix)
         self.top_value, self.top_index = tf.nn.top_k(y_predict, k=self.K, sorted=True)
 
     def run(self):
@@ -223,7 +225,7 @@ class stamp():
                 while self.step * self.batch_size < self.dg.records_number:
                     batch_item, batch_session, batch_neg_items = self.dg.gen_train_batch_data(self.batch_size)
                     self.sess.run(intention_optimizer,
-                                  feed_dict={self.item_id: batch_item,
+                                  feed_dict={self.real_item: batch_item,
                                              self.current_session: batch_session,
                                              self.neg_items: batch_neg_items})
                     self.step += 1

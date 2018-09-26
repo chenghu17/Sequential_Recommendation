@@ -8,6 +8,12 @@
       <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/STAMP" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/HRM" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Item-KNN" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/BPR-MF" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/BINN" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/GRU4Rec" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/NARM" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/POP" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
