@@ -9,7 +9,7 @@ except ImportError:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', help='The directory of input', type=str, default='data/tallM/')
+    parser.add_argument('--input_dir', help='The directory of input', type=str, default='data/Template/')
     parser.add_argument('-e', '--n_epoch', help='# of epoch', type=int, default=18)
     parser.add_argument('--n_neg', help='# of neg samples', type=int, default=10)
     parser.add_argument('-n', '--n_factor', help='dimension of factorization', type=int, default=20)
