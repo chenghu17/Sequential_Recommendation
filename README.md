@@ -1,15 +1,22 @@
-# Sequence Models
+## Sequence Models
 
-## Popularity
+### Popularity
+recommend items based on the number of occurrences
 
-## BPR_MatrixFactorization
+### BPR_MatrixFactorization
 
-## HRM
+### HRM
+using max-pooling、mean-pooling to generate session representation
 
-## SHAN
+### SHAN
+using pooling and attention to model all users' record
 
-## STAMP
+### STAMP
+using pooling、attention、MLP to model single session
 
-###reference
-1、
-2、Rendle, S., Freudenthaler, C., & Schmidt-Thieme, L. (2010). Factorizing personalized Markov chains for next-basket recommendation. Proceedings of the 19th International Conference on World Wide Web - WWW ’10, 811. http://doi.org/10.1145/1772690.1772773
+### reference
+1、Rendle, Steffen , et al. "BPR: Bayesian Personalized Ranking from Implicit Feedback." Conference on Uncertainty in Artificial Intelligence AUAI Press, 2009.
+2、Rendle, S., Freudenthaler, C., & Schmidt-Thieme, L. (2010). Factorizing personalized Markov chains for next-basket recommendation. Proceedings of the 19th International Conference on World Wide Web.
+3、Wang, Pengfei, et al. "Learning Hierarchical Representation Model for NextBasket Recommendation." (2015):403-412.
+4、Sequential Recommender System based on Hierarchical Attention Network,2018,IJCAI.
+5、STAMP: Short-Term Attention/Memory Priority Model for Session-based Recommendation,2018,KDD.
