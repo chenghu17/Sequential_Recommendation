@@ -1,3 +1,5 @@
+# author：hucheng
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -8,13 +10,12 @@ import logging.config
 
 
 class data_generation():
-    def __init__(self, type):
+    def __init__(self, type, neg_number):
         print('init')
         self.data_type = type
         self.train_dataset = './data/' + self.data_type + '/' + self.data_type + '_train_dataset.csv'
         self.test_dataset = './data/' + self.data_type + '/' + self.data_type + '_test_dataset.csv'
-        # self.train_file_path = './data/' + self.data_type + '_train_filtered'
-        # self.test_file_path = './data/' + self.data_type + '_test_filtered'
+
 
         self.train_users = []
         self.train_sessions = []  # 当前的session
@@ -28,7 +29,7 @@ class data_generation():
         self.test_pre_sessions = []
         self.test_real_items = []
 
-        self.neg_number = 1
+        self.neg_number = neg_number
         self.user_number = 0
         self.item_number = 0
         self.train_batch_id = 0
@@ -48,6 +49,8 @@ class data_generation():
                 user_id = int(line[0])
                 sessions = [i for i in line[1].split('@')]
                 size = len(sessions)
+                if size < 2:
+                    continue
                 the_first_session = [int(i) for i in sessions[0].split(':')]
                 self.train_pre_sessions.append(the_first_session)
                 tmp = copy.deepcopy(the_first_session)
@@ -86,6 +89,8 @@ class data_generation():
             user_id = int(line[0])
             if user_id in self.user_purchased_item.keys():
                 current_session = [int(i) for i in line[1].split(':')]
+                if len(current_session) < 2:
+                    continue
                 self.test_users.append(user_id)
                 item = random.choice(current_session)
                 self.test_real_items.append(int(item))
@@ -105,10 +110,14 @@ class data_generation():
         return sub_index
 
     def gen_neg(self, user_id):
-        neg_item = np.random.randint(self.item_number)
-        while neg_item in self.user_purchased_item[user_id]:
+        count = 0
+        neg_item_set = list()
+        while count < self.neg_number:
             neg_item = np.random.randint(self.item_number)
-        return neg_item
+            if neg_item not in self.user_purchased_item[user_id]:
+                neg_item_set.append(neg_item)
+                count += 1
+        return neg_item_set
 
     def gen_train_batch_data(self, batch_size):
         # l = len(self.train_users)
@@ -119,7 +128,8 @@ class data_generation():
         batch_user = self.train_users[self.train_batch_id:self.train_batch_id + batch_size]
         batch_item = self.train_items[self.train_batch_id:self.train_batch_id + batch_size]
         batch_session = self.train_sessions[self.train_batch_id]
-        batch_neg_item = self.train_neg_items[self.train_batch_id:self.train_batch_id + batch_size]
+        # batch_neg_item = self.train_neg_items[self.train_batch_id:self.train_batch_id + batch_size]
+        batch_neg_item = self.train_neg_items[self.train_batch_id]
         batch_pre_session = self.train_pre_sessions[self.train_batch_id]
 
         self.train_batch_id = self.train_batch_id + batch_size
@@ -144,14 +154,17 @@ class data_generation():
 
 class shan():
     # data_type :  TallM / GWL
-    def __init__(self, data_type):
+    def __init__(self, data_type, neg_number, itera, global_dimension):
         print('init ... ')
         self.input_data_type = data_type
 
         logging.config.fileConfig('logging.conf')
         self.logger = logging.getLogger()
+        fh = logging.FileHandler('shan_log_' + data_type + '_d_' + str(global_dimension), mode='a', encoding=None,
+                                 delay=False)
+        self.logger.addHandler(fh)
 
-        self.dg = data_generation(self.input_data_type)
+        self.dg = data_generation(self.input_data_type, neg_number)
         # 数据格式化
         self.dg.gen_train_data()
         self.dg.gen_test_data()
@@ -168,14 +181,13 @@ class shan():
         self.test_pre_sessions = self.dg.test_pre_sessions
         self.test_real_items = self.dg.test_real_items
 
-        self.global_dimension = 20
+        self.global_dimension = global_dimension
         self.batch_size = 1
-        self.K = 20
         self.results = []  # 可用来保存test每个用户的预测结果，最终计算precision
 
         self.step = 0
-        self.iteration = 100
-        self.lamada_u_v = 0.001
+        self.iteration = itera
+        self.lamada_u_v = 0.01
         self.lamada_a = 0.01
 
         self.initializer = tf.random_normal_initializer(mean=0, stddev=0.01)
@@ -203,12 +215,10 @@ class shan():
                                                shape=[self.global_dimension])
 
     def attention_level_one(self, user_embedding, pre_sessions_embedding, the_first_w, the_first_bias):
-        # self.weight = tf.nn.softmax(tf.multiply(tf.sigmoid(
-        #     tf.add(tf.matmul(pre_sessions_embedding, the_first_w), the_first_bias)), user_embedding))
 
         # 由于维度的原因，matmul和multiply方法要维度的变化
         # 最终weight为 1*n 的矩阵
-        self.weight = tf.nn.softmax(tf.transpose(tf.matmul(tf.sigmoid(
+        self.weight = tf.nn.softmax(tf.transpose(tf.matmul(tf.nn.relu(
             tf.add(tf.matmul(pre_sessions_embedding, the_first_w), the_first_bias)), tf.transpose(user_embedding))))
 
         out = tf.reduce_sum(tf.multiply(pre_sessions_embedding, tf.transpose(self.weight)), axis=0)
@@ -220,7 +230,7 @@ class shan():
         # 论文中规定，long_user_embedding的表示也不会根据softmax计算得到的参数而变化。
 
         self.weight = tf.nn.softmax(tf.transpose(tf.matmul(
-            tf.sigmoid(tf.add(
+            tf.nn.relu(tf.add(
                 tf.matmul(tf.concat([current_session_embedding, tf.expand_dims(long_user_embedding, axis=0)], 0),
                           the_second_w),
                 the_second_bias)), tf.transpose(user_embedding))))
@@ -251,8 +261,9 @@ class shan():
                                                tf.transpose(self.neg_item_embedding))
         self.intention_loss = tf.reduce_mean(
             -tf.log(tf.nn.sigmoid(self.positive_element_wise - self.negative_element_wise)))
-        self.regular_loss_u_v = tf.add(self.lamada_u_v * tf.nn.l2_loss(self.user_embedding),
-                                       self.lamada_u_v * tf.nn.l2_loss(self.item_embedding))
+        self.regular_loss_u_v = tf.add(tf.add(self.lamada_u_v * tf.nn.l2_loss(self.user_embedding),
+                                              self.lamada_u_v * tf.nn.l2_loss(self.item_embedding)),
+                                       self.lamada_u_v * tf.nn.l2_loss(self.neg_item_embedding))
         self.regular_loss_a = tf.add(self.lamada_a * tf.nn.l2_loss(self.the_first_w),
                                      self.lamada_a * tf.nn.l2_loss(self.the_second_w))
         self.regular_loss = tf.add(self.regular_loss_a, self.regular_loss_u_v)
@@ -261,7 +272,9 @@ class shan():
         # 增加test操作，由于每个用户pre_sessions和current_session的长度不一样，
         # 所以无法使用同一个矩阵进行表示同时计算，因此每个user计算一次，将结果保留并进行统计
         # 注意，test集合的整个item_embeeding得到的是 [M*K]的矩阵，M为所有item的个数，K为维度
-        self.top_value, self.top_index = tf.nn.top_k(self.positive_element_wise, k=self.K, sorted=True)
+        self.top_value_10, self.top_index_10 = tf.nn.top_k(self.positive_element_wise, k=10, sorted=True)
+        self.top_value_20, self.top_index_20 = tf.nn.top_k(self.positive_element_wise, k=20, sorted=True)
+        self.top_value_50, self.top_index_50 = tf.nn.top_k(self.positive_element_wise, k=50, sorted=True)
 
     def run(self):
         print('running ... ')
@@ -275,82 +288,90 @@ class shan():
                 print('new iteration begin ... ')
                 print('iteration: ', str(iter))
 
+                all_loss = 0
                 while self.step * self.batch_size < self.dg.records_number:
                     # 按批次读取数据
                     batch_user, batch_item, batch_session, batch_neg_item, batch_pre_sessions = self.dg.gen_train_batch_data(
                         self.batch_size)
 
-                    self.sess.run(self.intention_optimizer,
-                                  feed_dict={self.user_id: batch_user,
-                                             self.item_id: batch_item,
-                                             self.current_session: batch_session,
-                                             self.neg_item_id: batch_neg_item,
-                                             self.pre_sessions: batch_pre_sessions
-                                             })
-
+                    _, loss = self.sess.run([self.intention_optimizer, self.intention_loss],
+                                            feed_dict={self.user_id: batch_user,
+                                                       self.item_id: batch_item,
+                                                       self.current_session: batch_session,
+                                                       self.neg_item_id: batch_neg_item,
+                                                       self.pre_sessions: batch_pre_sessions
+                                                       })
+                    all_loss += loss
                     self.step += 1
                     # if self.step * self.batch_size % 5000 == 0:
+                print('loss = ', all_loss)
                 print('eval ...')
                 self.evolution()
                 print(self.step, '/', self.dg.train_batch_id, '/', self.dg.records_number)
                 self.step = 0
 
-            # 保存模型
-            self.save()
-
-    def save(self):
-        user_latent_factors, item_latent_factors, the_first_w, the_second_w, the_first_bias, the_second_bias = self.sess.run(
-            [self.user_embedding_matrix, self.item_embedding_matrix, self.the_first_w, self.the_second_w,
-             self.the_first_bias, self.the_second_bias])
-
-        t = pd.DataFrame(user_latent_factors)
-        t.to_csv('./model_result/gowalla/user_latent_factors')
-
-        t = pd.DataFrame(item_latent_factors)
-        t.to_csv('./model_result/gowalla/item_latent_factors')
-
-        t = pd.DataFrame(the_first_w)
-        t.to_csv('./model_result/gowalla/the_first_w')
-
-        t = pd.DataFrame(the_second_w)
-        t.to_csv('./model_result/gowalla/the_second_w')
-
-        t = pd.DataFrame(the_first_bias)
-        t.to_csv('./model_result/gowalla/the_first_bias')
-
-        t = pd.DataFrame(the_second_bias)
-        t.to_csv('./model_result/gowalla/the_second_bias')
-
-        return
-
-    def precision_k(self, pre_top_k, true_items):
+    def P_k(self, pre_top_k, true_items):
         right_pre = 0
         user_number = len(pre_top_k)
         for i in range(user_number):
-            if true_items[i] in pre_top_k[i]:
+            if true_items[i] in pre_top_k[i][0]:
                 right_pre += 1
         return right_pre / user_number
 
+    def MRR_k(self, pre_top_k, true_items):
+        MRR_rate = 0
+        user_number = len(pre_top_k)
+        for i in range(user_number):
+            if true_items[i] in pre_top_k[i][0]:
+                index = pre_top_k[i].tolist()[0].index(true_items[i])
+                MRR_rate += 1 / (index + 1)
+        return MRR_rate / user_number
+
     def evolution(self):
-        pre_top_k = []
+        pre_top_k_10 = []
+        pre_top_k_20 = []
+        pre_top_k_50 = []
 
         for _ in self.test_users:
             batch_user, batch_item, batch_session, batch_pre_session = self.dg.gen_test_batch_data(
                 self.batch_size)
-            top_k_value, top_index = self.sess.run([self.top_value, self.top_index],
-                                                   feed_dict={self.user_id: batch_user,
-                                                              self.item_id: batch_item,
-                                                              self.current_session: batch_session,
-                                                              self.pre_sessions: batch_pre_session})
-            pre_top_k.append(top_index)
+            top_index_10, top_index_20, top_index_50 = self.sess.run(
+                [self.top_index_10, self.top_index_20, self.top_index_50],
+                feed_dict={self.user_id: batch_user,
+                           self.item_id: batch_item,
+                           self.current_session: batch_session,
+                           self.pre_sessions: batch_pre_session})
+            pre_top_k_10.append(top_index_10)
+            pre_top_k_20.append(top_index_20)
+            pre_top_k_50.append(top_index_50)
 
-        self.logger.info('precision@' + str(self.K) + ' = ' + str(self.precision_k(pre_top_k, self.test_real_items)))
+        P_10 = self.P_k(pre_top_k_10, self.test_real_items)
+        MRR_10 = self.MRR_k(pre_top_k_10, self.test_real_items)
+
+        P_20 = self.P_k(pre_top_k_20, self.test_real_items)
+        MRR_20 = self.MRR_k(pre_top_k_20, self.test_real_items)
+
+        P_50 = self.P_k(pre_top_k_50, self.test_real_items)
+        MRR_50 = self.MRR_k(pre_top_k_50, self.test_real_items)
+
+        self.logger.info(self.input_data_type + ',' + 'P@10' + ' = ' + str(P_10))
+        self.logger.info(self.input_data_type + ',' + 'MRR@10' + ' = ' + str(MRR_10) + '\n')
+
+        self.logger.info(self.input_data_type + ',' + 'P@20' + ' = ' + str(P_20))
+        self.logger.info(self.input_data_type + ',' + 'MRR@20' + ' = ' + str(MRR_20) + '\n')
+
+        self.logger.info(self.input_data_type + ',' + 'P@50' + ' = ' + str(P_50))
+        self.logger.info(self.input_data_type + ',' + 'MRR@50' + ' = ' + str(MRR_50) + '\n')
 
         return
 
 
 if __name__ == '__main__':
-    type = ['tallM', 'gowalla']
-    model = shan(type[0])
+    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens']
+    neg_number = 10
+    itera = 100
+    global_dimension = 100
+    index = 4
+    model = shan(type[index], neg_number, itera, global_dimension)
     model.build_model()
     model.run()

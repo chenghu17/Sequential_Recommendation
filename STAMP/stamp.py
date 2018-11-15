@@ -43,6 +43,8 @@ class data_generation():
                 for s in sessions:
                     neg_item_set = []
                     current_session = [int(it) for it in s.split(':')]
+                    if len(current_session) < 2:
+                        continue
                     self.train_items.append(current_session[-1])
                     self.train_sessions.append(current_session[:-1])
                     neg_item_set = self.gen_neg(current_session)
@@ -57,6 +59,8 @@ class data_generation():
 
         for line in data:
             current_session = [int(i) for i in line[1].split(':')]
+            if len(current_session) < 2:
+                continue
             self.test_real_items.append(current_session[-1])
             self.test_sessions.append(current_session[:-1])
 
@@ -97,7 +101,7 @@ class data_generation():
 
 
 class stamp():
-    def __init__(self, data_type, neg_number):
+    def __init__(self, data_type, neg_number, K, itera, global_dimension):
         print('init ... ')
         self.input_data_type = data_type
 
@@ -115,13 +119,13 @@ class stamp():
         self.test_sessions = self.dg.test_sessions
         self.test_real_items = self.dg.test_real_items
 
-        self.global_dimension = 20
+        self.global_dimension = global_dimension
         self.batch_size = 1
-        self.K = 20
+        self.K = K
         self.results = []  # 可用来保存test每个用户的预测结果，最终计算precision
 
         self.step = 0
-        self.iteration = 100
+        self.iteration = itera
 
         self.initializer = tf.random_normal_initializer(mean=0, stddev=0.01)
         self.initializer_param = tf.random_uniform_initializer(minval=-np.sqrt(3 / self.global_dimension),
@@ -217,47 +221,23 @@ class stamp():
                 self.intention_loss)
             init = tf.global_variables_initializer()
             self.sess.run(init)
-
+            loss = 0
             for _ in range(self.iteration):
                 print('new iteration begin ... ')
                 print('iteration: ', str(iter))
 
                 while self.step * self.batch_size < self.dg.records_number:
                     batch_item, batch_session, batch_neg_items = self.dg.gen_train_batch_data(self.batch_size)
-                    self.sess.run(intention_optimizer,
-                                  feed_dict={self.real_item: batch_item,
-                                             self.current_session: batch_session,
-                                             self.neg_items: batch_neg_items})
+                    _, loss = self.sess.run([intention_optimizer, self.intention_loss],
+                                            feed_dict={self.real_item: batch_item,
+                                                       self.current_session: batch_session,
+                                                       self.neg_items: batch_neg_items})
                     self.step += 1
+                print('loss = ', loss)
                 print('eval ...')
                 self.evolution()
                 print(self.step, '/', self.dg.train_batch_id, '/', self.dg.records_number)
                 self.step = 0
-
-            # 保存模型
-            # self.save()
-
-    # def save(self):
-    #     item_latent_factors, the_first_w, the_second_w, the_first_bias, the_second_bias = self.sess.run(
-    #         [self.item_embedding_matrix, self.the_first_w, self.the_second_w,
-    #          self.the_first_bias, self.the_second_bias])
-    #
-    #     t = pd.DataFrame(item_latent_factors)
-    #     t.to_csv('./model_result/gowalla/item_latent_factors')
-    #
-    #     t = pd.DataFrame(the_first_w)
-    #     t.to_csv('./model_result/gowalla/the_first_w')
-    #
-    #     t = pd.DataFrame(the_second_w)
-    #     t.to_csv('./model_result/gowalla/the_second_w')
-    #
-    #     t = pd.DataFrame(the_first_bias)
-    #     t.to_csv('./model_result/gowalla/the_first_bias')
-    #
-    #     t = pd.DataFrame(the_second_bias)
-    #     t.to_csv('./model_result/gowalla/the_second_bias')
-
-    # return
 
     def precision_k(self, pre_top_k, true_items):
         right_pre = 0
@@ -265,7 +245,24 @@ class stamp():
         for i in range(user_number):
             if true_items[i] in pre_top_k[i]:
                 right_pre += 1
+        return right_pre / (user_number * self.K)
+
+    def recall_k(self, pre_top_k, true_items):
+        right_pre = 0
+        user_number = len(pre_top_k)
+        for i in range(user_number):
+            if true_items[i] in pre_top_k[i]:
+                right_pre += 1
         return right_pre / user_number
+
+    def MRR_k(self, pre_top_k, true_items):
+        MRR_rate = 0
+        user_number = len(pre_top_k)
+        for i in range(user_number):
+            if true_items[i] in pre_top_k[i]:
+                index = pre_top_k[i].tolist()[0].index(true_items[i])
+                MRR_rate += 1 / (index + 1)
+        return MRR_rate / user_number
 
     def evolution(self):
         pre_top_k = []
@@ -276,14 +273,22 @@ class stamp():
                                                    feed_dict={self.current_session: batch_session})
             pre_top_k.append(top_index)
 
-        self.logger.info('precision@' + str(self.K) + ' = ' + str(self.precision_k(pre_top_k, self.test_real_items)))
+        P = self.recall_k(pre_top_k, self.test_real_items)
+        MRR = self.MRR_k(pre_top_k, self.test_real_items)
+
+        self.logger.info(self.input_data_type + ',' + 'recall@' + str(self.K) + ' = ' + str(P))
+        self.logger.info(self.input_data_type + ',' + 'MRR@' + str(self.K) + ' = ' + str(MRR))
 
         return
 
 
 if __name__ == '__main__':
-    type = ['tallM', 'gowalla']
+    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens']
     neg_number = 10
-    model = stamp(type[0], neg_number)
+    K = 20
+    itera = 200
+    global_dimension = 20
+    index = 0
+    model = stamp(type[index], neg_number, K, itera, global_dimension)
     model.build_model()
     model.run()
