@@ -12,7 +12,7 @@ use Markov Chain、personalized recommendation
 ### HRM
 use max-pooling、mean-pooling to generate session representation
 
-### GRU2Rec
+### GRU4Rec
 use GRU for every session. There is no connection between sessions.
 
 ### NARM
