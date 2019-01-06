@@ -6,14 +6,30 @@ recommend items based on the number of occurrences
 ### BPR_MatrixFactorization
 Bayesian Personalized Ranking
 
+### FPMC
+use Markov Chain、personalized recommendation
+
 ### HRM
-using max-pooling、mean-pooling to generate session representation
+use max-pooling、mean-pooling to generate session representation
+
+### GRU2Rec
+use GRU for every session. There is no connection between sessions.
+
+### NARM
+use global encoder and local encoder for single session.
+
+### HGRU
+use user embedding、GRU for every session. There is a connection between each person's session.
+
 
 ### SHAN
-using pooling and attention to model all users' record
+use pooling and attention to model all users' record
 
 ### STAMP
-using pooling、attention、MLP to model single session
+use pooling、attention、MLP to model single session
+
+### SR-GNN
+build graph、use GNN
 
 ### reference
 1、Rendle, Steffen , et al. "BPR: Bayesian Personalized Ranking from Implicit Feedback." Conference on Uncertainty in Artificial Intelligence AUAI Press, 2009.
@@ -22,8 +38,14 @@ using pooling、attention、MLP to model single session
 
 3、Wang, Pengfei, et al. "Learning Hierarchical Representation Model for NextBasket Recommendation." (2015):403-412.
 
-4、Sequential Recommender System based on Hierarchical Attention Network,2018,IJCAI.
+4、Session-based Recommendations with Recurrent Neural Networks,2016,ICLR.
 
-5、STAMP: Short-Term Attention/Memory Priority Model for Session-based Recommendation,2018,KDD.
+5、Jing Li, Pengjie Ren, Zhumin Chen, Zhaochun Ren, Tao Lian and Jun Ma (2017). Neural Attentive Session-based Recommendation. In Proceedings of CIKM'17, Singapore, Singapore, Nov 06-10, 2017.
 
-6、SR-GNN: Session-based Recommendation with Graph Neural Networks,2019,AAAI.
+6、HGRU2Rec: Personalizing Session-based Recommendation with Hierarchical Recurrent Neural Networks,2017,RecSys.
+
+7、Sequential Recommender System based on Hierarchical Attention Network,2018,IJCAI.
+
+8、STAMP: Short-Term Attention/Memory Priority Model for Session-based Recommendation,2018,KDD.
+
+9、SR-GNN: Session-based Recommendation with Graph Neural Networks,2019,AAAI.
