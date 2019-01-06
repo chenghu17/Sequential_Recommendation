@@ -120,7 +120,7 @@ class hrm():
 
         self.initializer = tf.random_normal_initializer(mean=0, stddev=0.01)
         self.initializer_param = tf.random_uniform_initializer(minval=-np.sqrt(3 / self.global_dimension),
-                                                               maxval=-np.sqrt(3 / self.global_dimension))
+                                                               maxval=np.sqrt(3 / self.global_dimension))
 
         self.user_id = tf.placeholder(tf.int32, shape=[None], name='user_id')
         self.item_id = tf.placeholder(tf.int32, shape=[None], name='item_id')
@@ -259,12 +259,12 @@ class hrm():
 
 
 if __name__ == '__main__':
-    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens']
+    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens', 'tafeng']
     neg_number = 10
     K = 50
     itera = 200
     global_dimension = 50
-    index = 0
+    index = 5
     model = hrm(type[index], neg_number, K, itera, global_dimension)
     model.build_model()
     model.run()

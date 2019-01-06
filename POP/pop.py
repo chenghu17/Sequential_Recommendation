@@ -95,8 +95,8 @@ class pop():
 
 
 if __name__ == '__main__':
-    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens']
-    index = 1
+    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens', 'tafeng']
+    index = 5
     itera = 50
     P_50 = 0
     MRR_50 = 0

@@ -25,3 +25,5 @@ using pooling、attention、MLP to model single session
 4、Sequential Recommender System based on Hierarchical Attention Network,2018,IJCAI.
 
 5、STAMP: Short-Term Attention/Memory Priority Model for Session-based Recommendation,2018,KDD.
+
+6.SR-GNN: Session-based Recommendation with Graph Neural Networks,2019,AAAI.

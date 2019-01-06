@@ -192,7 +192,7 @@ class shan():
 
         self.initializer = tf.random_normal_initializer(mean=0, stddev=0.01)
         self.initializer_param = tf.random_uniform_initializer(minval=-np.sqrt(3 / self.global_dimension),
-                                                               maxval=-np.sqrt(3 / self.global_dimension))
+                                                               maxval=np.sqrt(3 / self.global_dimension))
 
         self.user_id = tf.placeholder(tf.int32, shape=[None], name='user_id')
         self.item_id = tf.placeholder(tf.int32, shape=[None], name='item_id')
@@ -286,7 +286,7 @@ class shan():
 
             for iter in range(self.iteration):
                 print('new iteration begin ... ')
-                print('iteration: ', str(iter))
+                self.logger.info('iteration: '+str(iter))
 
                 all_loss = 0
                 while self.step * self.batch_size < self.dg.records_number:
@@ -304,8 +304,8 @@ class shan():
                     all_loss += loss
                     self.step += 1
                     # if self.step * self.batch_size % 5000 == 0:
-                print('loss = ', all_loss)
-                print('eval ...')
+                self.logger.info('loss = '+str(all_loss)+'\n')
+                self.logger.info('eval ...')
                 self.evolution()
                 print(self.step, '/', self.dg.train_batch_id, '/', self.dg.records_number)
                 self.step = 0
@@ -367,11 +367,11 @@ class shan():
 
 
 if __name__ == '__main__':
-    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens']
+    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens', 'tafeng']
     neg_number = 10
     itera = 100
-    global_dimension = 100
-    index = 4
+    global_dimension = 50
+    index = 5
     model = shan(type[index], neg_number, itera, global_dimension)
     model.build_model()
     model.run()

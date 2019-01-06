@@ -7,6 +7,7 @@ import random
 import logging
 from scipy.stats import logistic
 
+
 class statistic_data():
 
     def __init__(self, datatype):
@@ -165,8 +166,8 @@ class BPR():
 
 
 if __name__ == '__main__':
-    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens']
-    index = 0
+    type = ['tallM', 'gowalla', 'lastFM', 'fineFoods', 'movieLens', 'tafeng']
+    index = 5
     d = 50
     itera = 100
     model = BPR(type[index], d, itera)
