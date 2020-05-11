@@ -49,3 +49,6 @@ build graph、use GNN
 8、STAMP: Short-Term Attention/Memory Priority Model for Session-based Recommendation,2018,KDD.
 
 9、SR-GNN: Session-based Recommendation with Graph Neural Networks,2019,AAAI.
+
+### note
+回邮件会不及时，请谅解
