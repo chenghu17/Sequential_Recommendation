@@ -65,7 +65,7 @@ class FPMC():
             acc = correct_count / len(rr_list)
             mrr = (sum(rr_list) / len(rr_list))
             return (acc, mrr)
-        except:
+        except ZeroDivisionError:
             return (0.0, 0.0)
 
     def learn_epoch(self, tr_data, neg_batch_size):
